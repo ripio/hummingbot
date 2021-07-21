@@ -26,6 +26,9 @@ dydx_taker_fee:
 huobi_maker_fee:
 huobi_taker_fee:
 
+bitcoin_trade_maker_fee:
+bitcoin_trade_taker_fee:
+
 liquid_maker_fee:
 liquid_taker_fee:
 
