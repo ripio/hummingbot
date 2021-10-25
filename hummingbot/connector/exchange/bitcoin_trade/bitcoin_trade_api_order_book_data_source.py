@@ -24,7 +24,7 @@ from hummingbot.connector.exchange.bitcoin_trade.bitcoin_trade_order_book import
 from hummingbot.connector.exchange.bitcoin_trade.bitcoin_trade_utils import convert_to_exchange_trading_pair
 
 
-TRADING_PAIRS = ['BTC-BRL', 'ETH-BRL', 'LTC-BRL', 'BCH-BRL', 'XRP-BRL', 'EOS-BRL', 'DAI-BRL']
+TRADING_PAIRS = ['BTC-BRL', 'ETH-BRL', 'LTC-BRL', 'BCH-BRL', 'XRP-BRL', 'EOS-BRL', 'DAI-BRL', 'DOT-BRL', 'RPC-BRL']
 # the max depth of the snapthot is 200
 DEPTH = 200
 ROOT_PUBLIC_REST_URL = 'https://api.bitcointrade.com.br/v3/public/'
