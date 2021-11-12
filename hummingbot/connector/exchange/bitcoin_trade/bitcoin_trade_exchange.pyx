@@ -389,6 +389,24 @@ cdef class BitcoinTradeExchange(ExchangeBase):
             min_quote_amount_increment=Decimal(0.01),
             min_notional_size=Decimal(25)
         )
+        self._trading_rules['DOT-BRL'] = TradingRule(
+            trading_pair='BRLDOT',
+            min_order_size=Decimal(1.0),
+            max_order_size=Decimal(1000000000),
+            min_price_increment=Decimal(.01),
+            min_base_amount_increment=Decimal(0.00000001),
+            min_quote_amount_increment=Decimal(.01),
+            min_notional_size=Decimal(25)
+        )
+        self._trading_rules['RPC-BRL'] = TradingRule(
+            trading_pair='BRLRPC',
+            min_order_size=Decimal(150),
+            max_order_size=Decimal(1000000000),
+            min_price_increment=Decimal(.0001),
+            min_base_amount_increment=Decimal(1),
+            min_quote_amount_increment=Decimal(.01),
+            min_notional_size=Decimal(25)
+        )
 
     async def get_order_status(self, exchange_order_id: str) -> Dict[str, Any]:
         """
