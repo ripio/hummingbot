@@ -62,7 +62,7 @@ huobi_api_key = os.getenv("HUOBI_API_KEY")
 huobi_secret_key = os.getenv("HUOBI_SECRET_KEY")
 
 # Bitcoin Trade
-bitcoin_trade_api_key = os.getenv("BITCOIN_TRADE_API_KEY")
+ripio_trade_api_key = os.getenv("RIPIO_TRADE_API_KEY")
 
 # Dolomite Tests
 dolomite_test_web3_private_key = os.getenv("DOLOMITE_TEST_PK")

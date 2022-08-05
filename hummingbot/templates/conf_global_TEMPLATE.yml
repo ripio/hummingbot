@@ -27,7 +27,7 @@ binance_perpetual_testnet_api_secret: null
 bittrex_api_key: null
 bittrex_secret_key: null
 
-bitcoin_trade_api_key: null
+ripio_trade_api_key: null
 
 blocktane_api_key: null
 blocktane_api_secret: null
