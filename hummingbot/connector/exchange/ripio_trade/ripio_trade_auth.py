@@ -9,8 +9,8 @@ class RipioTradeAuth:
         self.api_key: str = api_key
 
     def add_auth_to_params(self,
-                           method: str,
-                           path_url: str,
+                        #    method: str,
+                        #    path_url: str,
                            args: Dict[str, Any] = None) -> Dict[str, Any]:
         auth_string = f'{self.api_key}'
         request = {

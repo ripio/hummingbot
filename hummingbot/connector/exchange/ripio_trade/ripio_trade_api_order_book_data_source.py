@@ -114,7 +114,7 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
             return order_book
 
     async def listen_for_trades(self, ev_loop: asyncio.BaseEventLoop, output: asyncio.Queue):
-        trading_pairs: List[str] = await self.get_trading_pairs()
+        trading_pairs: List[str] = await self.fetch_trading_pairs()
         tasks = [
             ev_loop.create_task(self._listen_trades_for_pair(pair, output))
             for pair in trading_pairs
@@ -139,9 +139,9 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
                         if response.status != 200:
                             raise IOError(f'Error fetching Ripio Trade market snapshot for {pair}. HTTP status is {response.status}.')
                         trades: List[str] = (await response.json())['data']['trades']
-
                         if not last_updated_date_trade:
-                            last_updated_date_trade = trades[0]['date']
+                            if len(trades) > 1:
+                                last_updated_date_trade = trades[0]['date']
                         else:
                             for trade in trades:
                                 if trade['date'] != last_updated_date_trade:
@@ -167,7 +167,7 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
     async def listen_for_order_book_diffs(self,
                                           ev_loop: asyncio.BaseEventLoop,
                                           output: asyncio.Queue):
-        trading_pairs: List[str] = await self.get_trading_pairs()
+        trading_pairs: List[str] = await self.fetch_trading_pairs()
         tasks = [
             self._listen_order_book_for_pair(pair, output)
             for pair in trading_pairs
@@ -215,7 +215,7 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
     async def listen_for_order_book_snapshots(self, ev_loop: asyncio.BaseEventLoop, output: asyncio.Queue):
         while True:
             try:
-                trading_pairs: List[str] = await self.get_trading_pairs()
+                trading_pairs: List[str] = await self.fetch_trading_pairs()
                 async with aiohttp.ClientSession() as client:
                     for trading_pair in trading_pairs:
                         try:
@@ -243,3 +243,6 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
             except Exception:
                 self.logger().error("Unexpected error.", exc_info=True)
                 await asyncio.sleep(5.0)
+                
+    async def listen_for_subscriptions(self):
+        pass

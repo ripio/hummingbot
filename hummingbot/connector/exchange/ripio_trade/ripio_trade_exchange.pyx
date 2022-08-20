@@ -20,7 +20,9 @@ from hummingbot.core.clock cimport Clock
 from hummingbot.core.data_type.cancellation_result import CancellationResult
 from hummingbot.core.data_type.limit_order import LimitOrder
 from hummingbot.core.data_type.order_book cimport OrderBook
+from hummingbot.core.api_throttler.async_throttler import AsyncThrottler
 from hummingbot.core.data_type.transaction_tracker import TransactionTracker
+from hummingbot.core.data_type.trade_fee import AddedToCostTradeFee, TokenAmount
 from hummingbot.core.event.events import (
     MarketEvent,
     BuyOrderCompletedEvent,
@@ -32,8 +34,7 @@ from hummingbot.core.event.events import (
     MarketTransactionFailureEvent,
     MarketOrderFailureEvent,
     OrderType,
-    TradeType,
-    TradeFee
+    TradeType
 )
 from hummingbot.core.network_iterator import NetworkStatus
 from hummingbot.core.utils.async_call_scheduler import AsyncCallScheduler
@@ -101,17 +102,18 @@ cdef class RipioTradeExchange(ExchangeBase):
         return hm_logger
 
     def __init__(self,
-                 ripio_trade_api_key: str,
-                 trading_pairs: Optional[List[str]] = None,
-                 trading_required: bool = True):
+                client_config_map: "ClientConfigAdapter",
+                ripio_trade_api_key: str,
+                # poll_interval: float = 30.0,
+                trading_pairs: Optional[List[str]] = None,
+                trading_required: bool = True):
 
-        super().__init__()
+        super().__init__(client_config_map)
         self._account_id = "1"
         self._async_scheduler = AsyncCallScheduler(call_interval=0.5)
         self._ev_loop = asyncio.get_event_loop()
         self._ripiotrade_auth = RipioTradeAuth(api_key=ripio_trade_api_key)
         self._in_flight_orders = {}
-        self._last_poll_timestamp = 0
         self._last_timestamp = 0
         self._order_book_tracker = RipioTradeOrderBookTracker(
             trading_pairs=trading_pairs
@@ -122,6 +124,8 @@ cdef class RipioTradeExchange(ExchangeBase):
         self._trading_required = trading_required
         self._trading_rules = {}
         self._trading_rules_polling_task = None
+        self._last_poll_timestamp = 0
+        # self._poll_interval = poll_interval
         self._tx_tracker = RipioTradeExchangeTransactionTracker(self)
 
     @property
@@ -213,9 +217,8 @@ cdef class RipioTradeExchange(ExchangeBase):
 
     cdef c_tick(self, double timestamp):
         cdef:
-            double poll_interval = (self.SHORT_POLL_INTERVAL)
-            int64_t last_tick = <int64_t>(self._last_timestamp / poll_interval)
-            int64_t current_tick = <int64_t>(timestamp / poll_interval)
+            int64_t last_tick = <int64_t>(self._last_timestamp / self.SHORT_POLL_INTERVAL)
+            int64_t current_tick = <int64_t>(timestamp / self.SHORT_POLL_INTERVAL)
         ExchangeBase.c_tick(self, timestamp)
         self._tx_tracker.c_tick(timestamp)
         if current_tick > last_tick:
@@ -238,7 +241,7 @@ cdef class RipioTradeExchange(ExchangeBase):
         url = f'{RIPIOTRADE_ROOT_API}/{path_url}'
         client = await self._http_client()
         if is_auth_required:
-            headers = self._ripiotrade_auth.add_auth_to_params(method, path_url, params)
+            headers = self._ripiotrade_auth.add_auth_to_params(params)
         else:
             headers = {"Content-Type": "application/json"}
         if data:
@@ -315,7 +318,8 @@ cdef class RipioTradeExchange(ExchangeBase):
                           object order_type,
                           object order_side,
                           object amount,
-                          object price):
+                          object price,
+                          object is_maker = None):
 
         is_maker = order_type is OrderType.LIMIT_MAKER
         return estimate_fee("ripio_trade", is_maker)
@@ -328,11 +332,12 @@ cdef class RipioTradeExchange(ExchangeBase):
             pairs_info = await self._api_request("get", path_url="public/pairs")
             currencies_info = await self._api_request("get", path_url="public/currencies")
             currencies_info_map = { i["code"] : i for i in currencies_info["list"]}
-            self._trading_rules.clear()
+            self._trading_rules.clear()            
             for pair_info in pairs_info["list"]:
                 if pair_info["enabled"]:
-                    self._trading_rules[convert_from_exchange_trading_pair(pair_info["symbol"])] = TradingRule(
-                        trading_pair=pair_info["symbol"],
+                    trading_pair = convert_from_exchange_trading_pair(pair_info["symbol"])
+                    self._trading_rules[trading_pair] = TradingRule(
+                        trading_pair=trading_pair,
                         min_order_size=Decimal(pair_info["min_amount"]),
                         # max_order_size=Decimal(10),
                         min_price_increment=Decimal(pair_info["price_tick"]), #
@@ -465,10 +470,8 @@ cdef class RipioTradeExchange(ExchangeBase):
                                                                         tracked_order.client_order_id,
                                                                         tracked_order.base_asset,
                                                                         tracked_order.quote_asset,
-                                                                        tracked_order.fee_asset or tracked_order.base_asset,
                                                                         tracked_order.executed_amount_base,
                                                                         tracked_order.executed_amount_quote,
-                                                                        tracked_order.fee_paid,
                                                                         tracked_order.order_type))
                         else:
                             self.logger().info(f"The market sell order {tracked_order.client_order_id} has completed "
@@ -478,10 +481,8 @@ cdef class RipioTradeExchange(ExchangeBase):
                                                                          tracked_order.client_order_id,
                                                                          tracked_order.base_asset,
                                                                          tracked_order.quote_asset,
-                                                                         tracked_order.fee_asset or tracked_order.quote_asset,
                                                                          tracked_order.executed_amount_base,
                                                                          tracked_order.executed_amount_quote,
-                                                                         tracked_order.fee_paid,
                                                                          tracked_order.order_type))
                     else:  # Handles "canceled"
                         self.c_stop_tracking_order(tracked_order.client_order_id)
@@ -621,7 +622,8 @@ cdef class RipioTradeExchange(ExchangeBase):
                                      trading_pair,
                                      decimal_amount,
                                      decimal_price,
-                                     order_id
+                                     order_id,
+                                     tracked_order.creation_timestamp
                                  ))
         except asyncio.CancelledError:
             raise
@@ -702,7 +704,8 @@ cdef class RipioTradeExchange(ExchangeBase):
                                      trading_pair,
                                      decimal_amount,
                                      decimal_price,
-                                     order_id
+                                     order_id,
+                                     tracked_order.creation_timestamp
                                  ))
         except asyncio.CancelledError:
             raise
@@ -846,7 +849,8 @@ cdef class RipioTradeExchange(ExchangeBase):
             order_type=order_type,
             trade_type=trade_type,
             price=price,
-            amount=amount
+            amount=amount,
+            creation_timestamp=self.current_timestamp
         )
 
     cdef c_stop_tracking_order(self, str order_id):
@@ -908,8 +912,17 @@ cdef class RipioTradeExchange(ExchangeBase):
                 order_type: OrderType,
                 order_side: TradeType,
                 amount: Decimal,
-                price: Decimal = s_decimal_NaN) -> TradeFee:
-        return self.c_get_fee(base_currency, quote_currency, order_type, order_side, amount, price)
+                price: Decimal = s_decimal_NaN,
+                is_maker: Optional[bool] = None) -> AddedToCostTradeFee:
+        return self.c_get_fee(base_currency, quote_currency, order_type, order_side, amount, price, is_maker)
 
     def get_order_book(self, trading_pair: str) -> OrderBook:
         return self.c_get_order_book(trading_pair)
+
+    async def all_trading_pairs(self) -> List[str]:
+        # This method should be removed and instead we should implement _initialize_trading_pair_symbol_map
+        return await RipioTradeAPIOrderBookDataSource.fetch_trading_pairs()
+
+    async def get_last_traded_prices(self, trading_pairs: List[str]) -> Dict[str, float]:
+        # This method should be removed and instead we should implement _get_last_traded_price
+        return await RipioTradeAPIOrderBookDataSource.get_last_traded_prices(trading_pairs=trading_pairs)

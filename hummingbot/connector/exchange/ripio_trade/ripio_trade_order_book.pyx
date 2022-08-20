@@ -4,7 +4,7 @@ from decimal import Decimal
 from aiokafka import ConsumerRecord
 import bz2
 import logging
-from sqlalchemy.engine import RowProxy
+# from sqlalchemy.engine import RowProxy
 import dateutil
 import time
 from typing import (

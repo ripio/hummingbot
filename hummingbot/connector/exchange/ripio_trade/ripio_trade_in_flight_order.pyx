@@ -20,7 +20,8 @@ cdef class RipioTradeInFlightOrder(InFlightOrderBase):
                  trade_type: TradeType,
                  price: Decimal,
                  amount: Decimal,
-                 initial_state: str = "waiting"):
+                 creation_timestamp: float,
+                 initial_state: str = "local"):
         super().__init__(
             client_order_id,
             exchange_order_id,
@@ -29,8 +30,16 @@ cdef class RipioTradeInFlightOrder(InFlightOrderBase):
             trade_type,
             price,
             amount,
+            creation_timestamp,
             initial_state  # executed_completely / executed_partially / waiting / canceled
         )
+
+        # self.trade_id_set = set()
+        self.fee_asset = self.quote_asset
+
+    @property
+    def is_local(self) -> bool:
+        return self.last_state in {"local"}
 
     @property
     def is_done(self) -> bool:
@@ -48,22 +57,23 @@ cdef class RipioTradeInFlightOrder(InFlightOrderBase):
     def is_open(self) -> bool:
         return self.last_state in {"waiting", "executed_partially"}
 
-    @classmethod
-    def from_json(cls, data: Dict[str, Any]) -> InFlightOrderBase:
-        cdef:
-            RipioTradeInFlightOrder retval = RipioTradeInFlightOrder(
-                client_order_id=data["client_order_id"],
-                exchange_order_id=data["exchange_order_id"],
-                trading_pair=data["trading_pair"],
-                order_type=getattr(OrderType, data["order_type"]),
-                trade_type=getattr(TradeType, data["trade_type"]),
-                price=Decimal(data["price"]),
-                amount=Decimal(data["amount"]),
-                initial_state=data["last_state"]
-            )
-        retval.executed_amount_base = Decimal(data["executed_amount_base"])
-        retval.executed_amount_quote = Decimal(data["executed_amount_quote"])
-        retval.fee_asset = data["fee_asset"]
-        retval.fee_paid = Decimal(data["fee_paid"])
-        retval.last_state = data["last_state"]
-        return retval
+    # @classmethod
+    # def from_json(cls, data: Dict[str, Any]) -> InFlightOrderBase:
+    #     cdef:
+    #         RipioTradeInFlightOrder retval = RipioTradeInFlightOrder(
+    #             client_order_id=data["client_order_id"],
+    #             exchange_order_id=data["exchange_order_id"],
+    #             trading_pair=data["trading_pair"],
+    #             order_type=getattr(OrderType, data["order_type"]),
+    #             trade_type=getattr(TradeType, data["trade_type"]),
+    #             price=Decimal(data["price"]),
+    #             amount=Decimal(data["amount"]),
+    #             creation_timestamp=data["creation_timestamp"]
+    #             initial_state=data["last_state"]
+    #         )
+    #     retval.executed_amount_base = Decimal(data["executed_amount_base"])
+    #     retval.executed_amount_quote = Decimal(data["executed_amount_quote"])
+    #     retval.fee_asset = data["fee_asset"]
+    #     retval.fee_paid = Decimal(data["fee_paid"])
+    #     retval.last_state = data["last_state"]
+    #     return retval
