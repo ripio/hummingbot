@@ -236,8 +236,7 @@ cdef class RipioTradeExchange(ExchangeBase):
                            path_url,
                            params: Optional[Dict[str, Any]] = None,
                            data=None,
-                           is_auth_required: bool = False,
-                           is_crossed: bool = False) -> Dict[str, Any]:
+                           is_auth_required: bool = False) -> Dict[str, Any]:
         url = f'{RIPIOTRADE_ROOT_API}/{path_url}'
         client = await self._http_client()
         if is_auth_required:
@@ -262,8 +261,6 @@ cdef class RipioTradeExchange(ExchangeBase):
             )
         # raise ValueError(f'url\t{url}\nheaders\t{headers}\ndata\t{data}')
         async with response_coro as response:
-            if is_crossed:
-                raise ValueError("Error placing order. The price of such order cross the orderbook.")
             if response.status != 200:
                 raise IOError(f"Error fetching data from {url}. HTTP status is {response.status}.")
             try:
@@ -566,18 +563,20 @@ cdef class RipioTradeExchange(ExchangeBase):
 
         is_crossed = False
         # Reject limit maker order if they price cross the orderbook
-        if is_buy and order_type is OrderType.LIMIT_MAKER and self.get_price(trading_pair, True) <= price:
+        if is_buy and order_type is OrderType.LIMIT_MAKER and self.get_price(trading_pair, is_buy) <= price:
             is_crossed = True
-        if not is_buy and order_type is OrderType.LIMIT_MAKER and self.get_price(trading_pair, True) >= price:
+        if not is_buy and order_type is OrderType.LIMIT_MAKER and self.get_price(trading_pair, is_buy) >= price:
             is_crossed = True
+
+        if is_crossed:
+            raise ValueError("Error placing order. The price of such order cross the orderbook.")
 
         place_order_resp = await self._api_request(
             "post",
             path_url=path_url,
             params=None,
             data=data,
-            is_auth_required=True,
-            is_crossed=is_crossed
+            is_auth_required=True
         )
         return place_order_resp['code']
 
@@ -789,11 +788,11 @@ cdef class RipioTradeExchange(ExchangeBase):
 
     async def cancel_all(self, timeout_seconds: float) -> List[CancellationResult]:
         open_orders = [o for o in self._in_flight_orders.values() if o.is_open]
-        if len(open_orders) == 0:
-            return []
+        # if len(open_orders) == 0:
+        #     return []
         cancel_order_ids = [o.client_order_id for o in open_orders]
         order_id_set = set(cancel_order_ids)
-        self.logger().debug(f"cancel_order_ids {cancel_order_ids} {open_orders}")
+        # self.logger().debug(f"cancel_order_ids {cancel_order_ids} {open_orders}")
 
         tasks = [self.execute_cancel(o.trading_pair, o.client_order_id) for o in open_orders]
         cancellation_results = []
@@ -807,7 +806,7 @@ cdef class RipioTradeExchange(ExchangeBase):
                         cancellation_results.append(CancellationResult(client_order_id, True))
                     else:
                         self.logger().warning(
-                            f"failed to cancel order with error: "
+                            f"Failed to cancel order with RipioTrade error: "
                             f"{repr(client_order_id)}"
                         )
         except Exception as e:
