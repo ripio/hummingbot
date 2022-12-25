@@ -1,18 +1,34 @@
 import  hummingbot.connector.exchange.ripio_trade.ripio_trade_constants as CONSTANTS
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 
-def public_rest_url(path_url: str, pair: str = None) -> str:
+def __query(params: Optional[Dict[str, Any]] = None):
+    if params is None:
+        return ""
+    
+    result = '?'
+    for p in params:
+        result += str(p.key()) + str(p.value()) + '&'
+        
+    return result[:-1]
+    
+
+def public_rest_url(path_url: str, pair: str = None, params: Optional[Dict[str, Any]] = None) -> str:
     """
     Creates a full URL for provided public REST endpoint
     :param path_url: a public REST endpoint
     :return: the full URL to the endpoint
     """
-    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + "/public" + path_url + (pair or "")
+    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + "/public" + path_url + (pair or "") + __query(params)
 
 
-def private_rest_url(path_url: str) -> str:
+def private_rest_url(path_url: str, params: Optional[Dict[str, Any]] = None) -> str:
     """
     Creates a full URL for provided private REST endpoint
     :param path_url: a private REST endpoint
     :return: the full URL to the endpoint
     """
-    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + path_url
+    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + path_url + + __query(params)

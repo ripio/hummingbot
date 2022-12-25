@@ -15,7 +15,7 @@ class RipioTradeAuth:
         auth_string = f'{self.api_key}'
         request = {
             "Content-Type": "application/json",
-            "x-api-key": auth_string
+            "Authorization": auth_string
         }
         if args is not None:
             request.update(args)

@@ -3,6 +3,8 @@ from hummingbot.core.data_type.in_flight_order import OrderState
 
 EXCHANGE_NAME = "ripio_trade"
 
+MAX_ORDER_ID_LEN = 36
+
 # Base URL
 REST_URL = "https://api.ripiotrade.co/"
 WSS_URL = "wss://ws.ripiotrade.co"
@@ -13,10 +15,18 @@ API_VERSION = "v4"
 ORDER_BOOK_PATH_URL ="/orders/level-3/"
 TICKER_PRICE_PATH_URL = f"/ticker/"
 PAIRS_PATH_URL = f"/pairs/"
+SERVER_TIME_PATH_URL = f"/server-time/"
+CURRENCIES = f"/currencies/"
 # EXCHANGE_INFO_PATH_URL = "/exchangeInfo"
 # PING_PATH_URL = "/ping"
 # SNAPSHOT_PATH_URL = "/depth"
 # SERVER_TIME_PATH_URL = "/time"
+
+# Private API endpoints
+BALANCE_PATH_URL = "user/balances/"
+CANCEL_PATH_URL = "/orders/"
+ORDER_STATUS_BY_ID_URL_PATH = "/orders/{}/"
+NEW_ORDER_PATH_URL = '/orders/'
 
 # Private API endpoints or BinanceClient function
 # ACCOUNTS_PATH_URL = "/account"
@@ -24,8 +34,13 @@ PAIRS_PATH_URL = f"/pairs/"
 # ORDER_PATH_URL = "/order"
 # BINANCE_USER_STREAM_PATH_URL = "/userDataStream"
 
-SIDE_BUY = 'buy'
-SIDE_SELL = 'sell'
+WS_PRIVATE_CHANNELS = [
+    "order_status",
+    "balance",
+]
+
+SIDE_BUY = "buy"
+SIDE_SELL = "sell"
 
 
 ORDER_STATE = {
