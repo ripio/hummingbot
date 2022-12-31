@@ -29,18 +29,15 @@ class RipioTradeUserStreamTracker(UserStreamTracker):
         return cls._logger
 
     def __init__(self,
-                 probit_auth: Optional[RipioTradeAuth] = None,
+                 ripiotrade_auth: Optional[RipioTradeAuth] = None,
                  trading_pairs: Optional[List[str]] = None,
-                 domain: str = "com",
                  shared_client: Optional[aiohttp.ClientSession] = None):
         self._shared_client = shared_client
-        self._domain: str = domain
-        self._probit_auth: RipioTradeAuth = probit_auth
+        self._ripiotrade_auth: RipioTradeAuth = ripiotrade_auth
         self._trading_pairs: List[str] = trading_pairs or []
         super().__init__(data_source=RipioTradeAPIUserStreamDataSource(
-            probit_auth=self._probit_auth,
+            ripio_trade_auth=self._ripiotrade_auth,
             trading_pairs=self._trading_pairs,
-            domain=self._domain,
             shared_client=self._shared_client,
         ))
 
@@ -53,7 +50,7 @@ class RipioTradeUserStreamTracker(UserStreamTracker):
         """
         if not self._data_source:
             self._data_source = RipioTradeAPIUserStreamDataSource(
-                probit_auth=self._probit_auth,
+                ripiotrade_auth=self._ripiotrade_auth,
                 trading_pairs=self._trading_pairs,
                 domain=self._domain,
                 shared_client=self._shared_client,

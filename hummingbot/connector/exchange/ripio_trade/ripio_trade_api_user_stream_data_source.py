@@ -77,28 +77,28 @@ class RipioTradeAPIUserStreamDataSource(UserStreamTrackerDataSource):
             raise
         return self._websocket_client
 
-    # TODO check
-    async def _authenticate(self, ws: aiohttp.ClientWebSocketResponse):
-        """
-        Authenticates user to websocket
-        """
-        try:
-            # TODO get_ws_auth_payload
-            auth_payload: Dict[str, Any] = await self._ripio_trade_auth.get_ws_auth_payload()
-            await ws.send_str(ujson.dumps(auth_payload, escape_forward_slashes=False))
-            auth_resp = await ws.receive_json()
+    # # TODO check
+    # async def _authenticate(self, ws: aiohttp.ClientWebSocketResponse):
+    #     """
+    #     Authenticates user to websocket
+    #     """
+    #     try:
+    #         # TODO get_ws_auth_payload
+    #         auth_payload: Dict[str, Any] = await self._ripio_trade_auth.get_ws_auth_payload()
+    #         await ws.send_str(ujson.dumps(auth_payload, escape_forward_slashes=False))
+    #         auth_resp = await ws.receive_json()
 
-            # TODO check message
-            if auth_resp["result"] != "ok":
-                self.logger().error(f"Response: {auth_resp}",
-                                    exc_info=True)
-                raise
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            self.logger().info("Error occurred when authenticating to user stream. ",
-                               exc_info=True)
-            raise
+    #         # TODO check message
+    #         if auth_resp["result"] != "ok":
+    #             self.logger().error(f"Response: {auth_resp}",
+    #                                 exc_info=True)
+    #             raise
+    #     except asyncio.CancelledError:
+    #         raise
+    #     except Exception:
+    #         self.logger().info("Error occurred when authenticating to user stream. ",
+    #                            exc_info=True)
+    #         raise
 
     async def _subscribe_to_channels(self, ws: aiohttp.ClientWebSocketResponse):
         """
@@ -106,9 +106,11 @@ class RipioTradeAPIUserStreamDataSource(UserStreamTrackerDataSource):
         """
         try:
             # for channel in CONSTANTS.WS_PRIVATE_CHANNELS:
+            ticket = await self._ripio_trade_auth.get_auth_ticket()
             sub_payload = {
                 "method": "subscribe",
-                "topics": CONSTANTS.WS_PRIVATE_CHANNELS
+                "topics": CONSTANTS.WS_PRIVATE_CHANNELS,
+                "ticket": ticket
             }
             await ws.send_json(sub_payload)
 
@@ -125,8 +127,8 @@ class RipioTradeAPIUserStreamDataSource(UserStreamTrackerDataSource):
                 self._last_recv_time = int(time.time())
                 if msg.type == WSMsgType.CLOSED:
                     return
-                elif msg.type == WSMsgType.PING:
-                    await ws.pong()
+                elif msg.type == WSMsgType.PONG:
+                    await ws.ping()
                     continue
                 yield msg.data
         except Exception:
@@ -147,9 +149,6 @@ class RipioTradeAPIUserStreamDataSource(UserStreamTrackerDataSource):
         while True:
             try:
                 ws: aiohttp.ClientWebSocketResponse = await self._init_websocket_connection()
-                self.logger().info("Authenticating to User Stream...")
-                await self._authenticate(ws)
-                self.logger().info("Successfully authenticated to User Stream.")
                 await self._subscribe_to_channels(ws)
                 self.logger().info("Successfully subscribed to all Private channels.")
 
@@ -159,7 +158,7 @@ class RipioTradeAPIUserStreamDataSource(UserStreamTrackerDataSource):
                 raise
             except Exception:
                 self.logger().error(
-                    "Unexpected error with Probit WebSocket connection. Retrying after 30 seconds...",
+                    "Unexpected error with Ripio Trade WebSocket connection. Retrying after 30 seconds...",
                     exc_info=True
                 )
                 if self._websocket_client is not None:

@@ -36,10 +36,10 @@ class RipioTradeOrderBook(OrderBook):
         if metadata:
             msg.update(metadata)
         content = {
-            "trading_pair": convert_from_exchange_trading_pair(msg["trading_pair"]),
+            "trading_pair": msg["market_id"] if "market_id" in msg else msg["trading_pair"],
             "update_id": timestamp,
-            "bids": [[d['unit_price'], d['amount']] for d in msg['data']['bids']],
-            "asks": [[d['unit_price'], d['amount']] for d in msg['data']['asks']]
+            "bids": [[d['price'], d['amount']] for d in msg['data']['bids']],
+            "asks": [[d['price'], d['amount']] for d in msg['data']['asks']]
         }
         return OrderBookMessage(OrderBookMessageType.SNAPSHOT, content, timestamp=timestamp)
 

@@ -12,21 +12,22 @@ WSS_URL = "wss://ws.ripiotrade.co"
 API_VERSION = "v4"
 
 # Public API endpoints
-ORDER_BOOK_PATH_URL ="/orders/level-3/"
-TICKER_PRICE_PATH_URL = f"/ticker/"
-PAIRS_PATH_URL = f"/pairs/"
-SERVER_TIME_PATH_URL = f"/server-time/"
-CURRENCIES = f"/currencies/"
+ORDER_BOOK_PATH_URL ="/orders/level-2/"
+TICKER_PRICE_PATH_URL = "/ticker/"
+PAIRS_PATH_URL = "/pairs/"
+SERVER_TIME_PATH_URL = "/server-time/"
+CURRENCIES = "/currencies/"
 # EXCHANGE_INFO_PATH_URL = "/exchangeInfo"
 # PING_PATH_URL = "/ping"
 # SNAPSHOT_PATH_URL = "/depth"
 # SERVER_TIME_PATH_URL = "/time"
 
 # Private API endpoints
-BALANCE_PATH_URL = "user/balances/"
+BALANCE_PATH_URL = "/user/balances/"
 CANCEL_PATH_URL = "/orders/"
 ORDER_STATUS_BY_ID_URL_PATH = "/orders/{}/"
-NEW_ORDER_PATH_URL = '/orders/'
+NEW_ORDER_PATH_URL = "/orders/"
+TICKET_PATH_URL = "/ticket/"
 
 # Private API endpoints or BinanceClient function
 # ACCOUNTS_PATH_URL = "/account"

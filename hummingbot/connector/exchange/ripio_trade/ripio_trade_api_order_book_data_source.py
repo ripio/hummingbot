@@ -72,7 +72,7 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @classmethod
     async def get_last_traded_prices(
         cls, trading_pairs: List[str], client: Optional[aiohttp.ClientSession] = None) -> Dict[str, float]:
-        if len(trading_pair) == 0:
+        if len(trading_pairs) == 0:
             return {}
         
         results = {}
@@ -105,7 +105,8 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @staticmethod
     async def get_snapshot(client: aiohttp.ClientSession, trading_pair: str) -> Dict[str, Any]:
         client = client or RipioTradeAPIOrderBookDataSource._get_session_instance()
-        async with client.get(f'{web_utils.public_rest_url(CONSTANTS.ORDER_BOOK_PATH_URL, convert_to_exchange_trading_pair(trading_pair))}?limit={DEPTH}') as response:
+        url = f'{web_utils.public_rest_url(CONSTANTS.ORDER_BOOK_PATH_URL)}?pair={convert_to_exchange_trading_pair(trading_pair)}&limit={DEPTH}'
+        async with client.get(url) as response:
             response: aiohttp.ClientResponse = response
             if response.status != 200:
                 raise IOError(f"Error fetching Ripio Trade market snapshot for {trading_pair}. HTTP status is {response.status}.")

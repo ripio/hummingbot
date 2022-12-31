@@ -10,8 +10,8 @@ def __query(params: Optional[Dict[str, Any]] = None):
         return ""
     
     result = '?'
-    for p in params:
-        result += str(p.key()) + str(p.value()) + '&'
+    for k, v in params.items():
+        result += str(k) + '=' + str(v) + '&'
         
     return result[:-1]
     
@@ -31,4 +31,4 @@ def private_rest_url(path_url: str, params: Optional[Dict[str, Any]] = None) -> 
     :param path_url: a private REST endpoint
     :return: the full URL to the endpoint
     """
-    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + path_url + + __query(params)
+    return CONSTANTS.REST_URL + CONSTANTS.API_VERSION + path_url +  __query(params)

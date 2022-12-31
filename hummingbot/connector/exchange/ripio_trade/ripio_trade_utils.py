@@ -11,8 +11,8 @@ from pydantic import Field, SecretStr
 from hashlib import md5
 
 
-TRADING_PAIR_SPLITTER_FROM_EXCHANGE = re.compile(r"^(ARS|USDC|BTC)(\w+)$")
-TRADING_PAIR_SPLITTER_TO_EXCHANGE = re.compile(r"^(\w+)(ARS|USDC|BTC)$")
+# TRADING_PAIR_SPLITTER_FROM_EXCHANGE = re.compile(r"^(ARS|USDC|BTC)(\w+)$")
+# TRADING_PAIR_SPLITTER_TO_EXCHANGE = re.compile(r"^(\w+)(ARS|USDC|BTC)$")
 
 CENTRALIZED = True
 
@@ -22,21 +22,20 @@ DEFAULT_FEES = [0.0, 0.0]
 
 
 def convert_from_exchange_trading_pair(exchange_trading_pair: str) -> Optional[str]:
-    splitted = TRADING_PAIR_SPLITTER_FROM_EXCHANGE.match(exchange_trading_pair)
-    if splitted is None:
-        return None
+    # splitted = TRADING_PAIR_SPLITTER_FROM_EXCHANGE.match(exchange_trading_pair)
+    # if splitted is None:
+    #     return None
 
-    quote_asset, base_asset = splitted.group(1), splitted.group(2)
-    return f"{base_asset}-{quote_asset}"
+    # quote_asset, base_asset = splitted.group(1), splitted.group(2)[1:]
+    # return f"{quote_asset}-{base_asset}"
+    base, quote = exchange_trading_pair.split("_")
+    return f"{base}-{quote}"
+    
 
 
 def convert_to_exchange_trading_pair(hb_trading_pair: str) -> str:
-    cut_pair = hb_trading_pair.replace("-", "")
-    splitted = TRADING_PAIR_SPLITTER_TO_EXCHANGE.match(cut_pair)
-    base_asset, quote_asset = splitted.group(1), splitted.group(2)
-    
-    # !!! currency unit prices are quoted as currency pairs CurrencyBase
-    return f"{quote_asset}{base_asset}"
+    base, quote = hb_trading_pair.split("-")
+    return f"{base}_{quote}"
 
 def get_new_client_order_id(
         is_buy: bool, 
