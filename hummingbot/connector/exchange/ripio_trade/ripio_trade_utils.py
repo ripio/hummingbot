@@ -1,6 +1,7 @@
 import re
 import os
 import socket
+import uuid
 from typing import (
     Optional,
     Tuple)
@@ -57,7 +58,7 @@ def get_new_client_order_id(
     """
     side = "B" if is_buy else "S"
     exch_symbol = convert_to_exchange_trading_pair(trading_pair)
-    client_instance_id = md5(f"{socket.gethostname()}{os.getpid()}".encode("utf-8")).hexdigest()
+    client_instance_id = uuid. uuid4()
     client_order_id = f"{hbot_order_id_prefix}{side}{exch_symbol}{client_instance_id}"
     if max_id_len is not None:
         client_order_id = client_order_id[:max_id_len]

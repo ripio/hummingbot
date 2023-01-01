@@ -683,15 +683,25 @@ class RipioTradeExchange(ExchangeBase):
             self._account_balances = new_balances
     
     
-    async def _order_update(self, tracked_order, order_update):
+    def _order_update(self, tracked_order, order_update):
         order_state = order_update["status"]
-        # possible order states are executed_completely / executed_partially / open / canceled
+        client_order_id = tracked_order.client_order_id
+        
 
-        if order_state not in ["executed_completely", "executed_partially", "open", "canceled"]:
-            self.logger().debug(f"Unrecognized order update response - {order_update} status:{order_state}")
         tracked_order.last_state = order_state
+        
         new_confirmed_amount = Decimal(order_update["executed_amount"])
         execute_amount_diff = new_confirmed_amount - tracked_order.executed_amount_base
+        
+        if tracked_order.is_cancelled:
+            self.logger().info(f"Successfully canceled order {client_order_id}.")
+            self.trigger_event(MarketEvent.OrderCancelled,
+                               OrderCancelledEvent(
+                                   self.current_timestamp,
+                                   client_order_id))
+            # tracked_order.cancelled_event.set()
+            self.stop_tracking_order(client_order_id)
+            return
 
         if execute_amount_diff > s_decimal_0:
             tracked_order.executed_amount_base = new_confirmed_amount
@@ -724,37 +734,36 @@ class RipioTradeExchange(ExchangeBase):
             return
 
         if tracked_order.is_done:
-            if not tracked_order.is_cancelled:  # Handles "filled" order
-                self.stop_tracking_order(tracked_order.client_order_id)
-                if tracked_order.trade_type is TradeType.BUY:
-                    self.logger().info(f"The market buy order {tracked_order.client_order_id} has completed "
-                                        f"according to order status API.")
-                    self.trigger_event(self.MARKET_BUY_ORDER_COMPLETED_EVENT_TAG,
-                                            BuyOrderCompletedEvent(self.current_timestamp,
+            self.stop_tracking_order(tracked_order.client_order_id)
+            if tracked_order.trade_type is TradeType.BUY:
+                self.logger().info(f"The market buy order {tracked_order.client_order_id} has completed "
+                                    f"according to order status API.")
+                self.trigger_event(self.MARKET_BUY_ORDER_COMPLETED_EVENT_TAG,
+                                        BuyOrderCompletedEvent(self.current_timestamp,
+                                                            tracked_order.client_order_id,
+                                                            tracked_order.base_asset,
+                                                            tracked_order.quote_asset,
+                                                            tracked_order.executed_amount_base,
+                                                            tracked_order.executed_amount_quote,
+                                                            tracked_order.order_type))
+            else:
+                self.logger().info(f"The market sell order {tracked_order.client_order_id} has completed "
+                                    f"according to order status API.")
+                self.trigger_event(self.MARKET_SELL_ORDER_COMPLETED_EVENT_TAG,
+                                        SellOrderCompletedEvent(self.current_timestamp,
                                                                 tracked_order.client_order_id,
                                                                 tracked_order.base_asset,
                                                                 tracked_order.quote_asset,
                                                                 tracked_order.executed_amount_base,
                                                                 tracked_order.executed_amount_quote,
                                                                 tracked_order.order_type))
-                else:
-                    self.logger().info(f"The market sell order {tracked_order.client_order_id} has completed "
-                                        f"according to order status API.")
-                    self.trigger_event(self.MARKET_SELL_ORDER_COMPLETED_EVENT_TAG,
-                                            SellOrderCompletedEvent(self.current_timestamp,
-                                                                    tracked_order.client_order_id,
-                                                                    tracked_order.base_asset,
-                                                                    tracked_order.quote_asset,
-                                                                    tracked_order.executed_amount_base,
-                                                                    tracked_order.executed_amount_quote,
-                                                                    tracked_order.order_type))
-            else:  # Handles "canceled"
-                self.stop_tracking_order(tracked_order.client_order_id)
-                self.logger().info(f"The market order {tracked_order.client_order_id} "
-                                    f"has been cancelled according to order status API.")
-                self.trigger_event(self.MARKET_ORDER_CANCELLED_EVENT_TAG,
-                                        OrderCancelledEvent(self.current_timestamp,
-                                                            tracked_order.client_order_id))
+            # else:  # Handles "canceled"
+            #     self.stop_tracking_order(tracked_order.client_order_id)
+            #     self.logger().info(f"The market order {tracked_order.client_order_id} "
+            #                         f"has been cancelled according to order status API.")
+            #     self.trigger_event(self.MARKET_ORDER_CANCELLED_EVENT_TAG,
+            #                             OrderCancelledEvent(self.current_timestamp,
+            #                                                 tracked_order.client_order_id))
     
     async def _update_order_status(self):
         """
@@ -762,7 +771,8 @@ class RipioTradeExchange(ExchangeBase):
         """
         last_tick = int(self._last_poll_timestamp / self.UPDATE_ORDER_STATUS_MIN_INTERVAL)
         current_tick = int(self.current_timestamp / self.UPDATE_ORDER_STATUS_MIN_INTERVAL)
-
+        
+        order_update = None
         if current_tick > last_tick and len(self._in_flight_orders) > 0:
             tracked_orders = list(self._in_flight_orders.values())
             for tracked_order in tracked_orders:
@@ -878,26 +888,25 @@ class RipioTradeExchange(ExchangeBase):
         event if the total executed amount equals to the specified order amount.
         """
         client_order_id = order_msg["user_id"]
-        ex_order_id = order_msg["id"]
         if client_order_id not in self._in_flight_orders:
             return
         tracked_order = self._in_flight_orders[client_order_id]
 
         # Update order execution status
-        tracked_order.last_state = order_msg["status"]
+        # tracked_order.last_state = order_msg["status"]
         
-        if tracked_order.is_cancelled:
-            self.logger().info(f"Successfully canceled order {client_order_id}.")
-            self.trigger_event(MarketEvent.OrderCancelled,
-                               OrderCancelledEvent(
-                                   self.current_timestamp,
-                                   client_order_id))
-            tracked_order.cancelled_event.set()
-            self.stop_tracking_order(client_order_id)
-            return
+        # if tracked_order.is_cancelled:
+        #     self.logger().info(f"Successfully canceled order {client_order_id}.")
+        #     self.trigger_event(MarketEvent.OrderCancelled,
+        #                        OrderCancelledEvent(
+        #                            self.current_timestamp,
+        #                            client_order_id))
+        #     tracked_order.cancelled_event.set()
+        #     self.stop_tracking_order(client_order_id)
+        #     return
             
-        if tracked_order.is_done() and not tracked_order.is_canceled():
-            self._order_update(tracked_order, order_msg)
+        # if tracked_order.is_done() and not tracked_order.is_canceled():
+        self._order_update(tracked_order, order_msg)
             # updated = tracked_order.update_with_trade_update(order_msg)
             # if not updated:
             #     return
@@ -1090,7 +1099,7 @@ class RipioTradeExchange(ExchangeBase):
                 channel = event_message["topic"]
 
                 if channel in ["balance"]:
-                    for balance_details in event_message["body"]["balances"].items():
+                    for balance_details in event_message["body"]["balances"]:
                         self._account_balances[balance_details["currency"]] = Decimal(str(balance_details["amount"]))
                         self._account_available_balances[balance_details["currency"]] = Decimal(str(balance_details["amount"])) - Decimal(str(balance_details["locked_amount"]))
                 # elif channel in ["open_order"]:
@@ -1152,7 +1161,7 @@ class RipioTradeExchange(ExchangeBase):
             }
         }
         """
-        path_url = web_utils.private_rest_url(CONSTANTS.ORDER_STATUS_BY_ID_URL_PATH.format(exchange_order_id)) #f"market/user_orders/{exchange_order_id}"
+        path_url = CONSTANTS.ORDER_STATUS_BY_ID_URL_PATH.format(exchange_order_id) #f"market/user_orders/{exchange_order_id}"
         return await self._api_request("GET", path_url=path_url, is_auth_required=True)    
 
     async def place_order(self,
@@ -1171,8 +1180,8 @@ class RipioTradeExchange(ExchangeBase):
             'pair': convert_to_exchange_trading_pair(trading_pair),
             'side': side,
             'type': 'limit',
-            'amount': f'{amount:.{self._precision[base]}f}',
-            'price': f'{price:f}',
+            'amount': amount, #f'{amount:.{self._precision[base]}f}',
+            'price': price, #f'{price:f}',
         }
 
         # raise ValueError(f"'unit_price': '{price:f}',\n'amount': '{amount:f}',\n'subtype': {order_type_str},\n'type': {side},\n'pair': {trading_pair.upper()}")

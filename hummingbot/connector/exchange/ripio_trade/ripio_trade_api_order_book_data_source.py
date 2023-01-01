@@ -214,7 +214,7 @@ class RipioTradeAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 msg = await msg_queue.get()
                 msg_timestamp = int(time.time() * 1e3)
 
-                diff_msg: OrderBookMessage = RipioTradeOrderBook.diff_message_from_exchange(
+                diff_msg: OrderBookMessage = RipioTradeOrderBook.snapshot_message_from_exchange(
                     msg=msg, 
                     timestamp=msg_timestamp,
                     metadata={"market_id": msg["market_id"]}
